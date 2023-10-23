@@ -105,7 +105,7 @@ impl Editor {
                 }
             }
             Key::Left => self.cursor_position.left(),
-            Key::Down => {
+            Key::Right => {
                 if x < width {
                     self.cursor_position.right()
                 } else {
