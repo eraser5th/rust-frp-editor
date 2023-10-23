@@ -1,3 +1,4 @@
+use std::env;
 use termion::event::Key;
 
 use crate::Document;
@@ -14,6 +15,7 @@ pub struct Editor {
     document: Document,
 }
 
+// Main logic
 impl Editor {
     pub fn run(&mut self) {
         loop {
@@ -28,16 +30,30 @@ impl Editor {
             }
         }
     }
+}
 
+// Default
+impl Editor {
     pub fn default() -> Self {
+        let args: Vec<String> = env::args().collect();
+        let document = if args.len() > 1 {
+            let file_name = &args[1];
+            Document::open(&file_name).unwrap_or_default()
+        } else {
+            Document::default()
+        };
+
         Self {
             should_quit: false,
             terminal: Terminal::default().expect("Failed to initialize terminal"),
             cursor_position: Position::default(),
-            document: Document::open(),
+            document,
         }
     }
+}
 
+// Utilities
+impl Editor {
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::cursor_hide();
         Terminal::clear_screen();
@@ -64,7 +80,7 @@ impl Editor {
         println!("{}\r", welcome_message);
     }
 
-    pub fn draw_row(&self, row: &Row) {
+    fn draw_row(&self, row: &Row) {
         let start = 0;
         let end = self.terminal.size().width as usize;
         let row = row.render(start, end);
@@ -101,6 +117,7 @@ impl Editor {
         }
         Ok(())
     }
+
     fn move_cursor(&mut self, key: Key) {
         let Position { x, y } = self.cursor_position;
         let size = self.terminal.size();
