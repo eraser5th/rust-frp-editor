@@ -1,4 +1,5 @@
 use std::env;
+use termion::color;
 use termion::event::Key;
 
 use crate::Document;
@@ -6,6 +7,7 @@ use crate::Position;
 use crate::Row;
 use crate::Terminal;
 
+const STATUS_BG_COLOR: color::Rgb = color::Rgb(239, 239, 239);
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct Editor {
@@ -65,6 +67,8 @@ impl Editor {
             println!("Goodbye!\r");
         } else {
             self.draw_rows();
+            self.draw_status_bar();
+            self.draw_message_bar();
             Terminal::cursor_position(&Position {
                 x: self.cursor_position.x.saturating_sub(self.offset.x),
                 y: self.cursor_position.y.saturating_sub(self.offset.y),
@@ -105,6 +109,17 @@ impl Editor {
                 println!("~\r");
             }
         }
+    }
+
+    fn draw_status_bar(&self) {
+        let spaces = " ".repeat(self.terminal.size().width as usize);
+        Terminal::set_bg_color(STATUS_BG_COLOR);
+        println!("{}\r", spaces);
+        Terminal::reset_bg_color();
+    }
+
+    fn draw_message_bar(&self) {
+        Terminal::clear_current_line()
     }
 
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
