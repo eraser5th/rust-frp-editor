@@ -1,5 +1,6 @@
 use termion::event::Key;
 
+use crate::Document;
 use crate::Position;
 use crate::Terminal;
 
@@ -9,6 +10,7 @@ pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
     cursor_position: Position,
+    document: Document,
 }
 
 impl Editor {
@@ -31,6 +33,7 @@ impl Editor {
             should_quit: false,
             terminal: Terminal::default().expect("Failed to initialize terminal"),
             cursor_position: Position { x: 0, y: 0 },
+            document: Document::default(),
         }
     }
 
