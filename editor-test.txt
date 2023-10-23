@@ -1,5 +1,12 @@
 hello editor.
 
+strange chars is here
+
+aaa
+äää
+y̆y̆y̆
+❤❤❤
+
 This line is sooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo long.
 
 and many
