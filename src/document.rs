@@ -4,6 +4,7 @@ use std::fs;
 #[derive(Default)]
 pub struct Document {
     rows: Vec<Row>,
+    pub file_name: Option<String>,
 }
 
 impl Document {
@@ -11,6 +12,7 @@ impl Document {
         let contents = fs::read_to_string(filename)?;
         Ok(Self {
             rows: contents.lines().map(|l| Row::from(l)).collect(),
+            file_name: Some(filename.to_string()),
         })
     }
 
