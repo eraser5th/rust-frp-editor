@@ -69,7 +69,6 @@ impl Editor {
             } else {
                 println!("~\r");
             }
-            println!("~\r");
         }
     }
 
