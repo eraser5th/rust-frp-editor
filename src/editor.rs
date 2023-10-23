@@ -93,7 +93,7 @@ impl Editor {
         let Position { x, y } = self.cursor_position;
         let size = self.terminal.size();
         let height = size.height.saturating_sub(1) as usize;
-        let width = size.height.saturating_sub(1) as usize;
+        let width = size.width.saturating_sub(1) as usize;
 
         self.cursor_position = match key {
             Key::Up => self.cursor_position.up(),
