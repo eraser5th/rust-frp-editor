@@ -52,7 +52,7 @@ impl StatusLine {
 }
 
 impl StatusLine {
-    fn to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         let mut status = String::new();
 
         status.push_str(

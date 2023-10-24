@@ -32,4 +32,18 @@ impl Position {
             y: self.y,
         }
     }
+
+    pub fn saturating_sub(&self, r: &Self) -> Self {
+        Self {
+            x: self.x.saturating_sub(r.x),
+            y: self.y.saturating_sub(r.y),
+        }
+    }
+
+    pub fn saturating_add(&self, r: &Self) -> Self {
+        Self {
+            x: self.x.saturating_add(r.x),
+            y: self.y.saturating_add(r.y),
+        }
+    }
 }

@@ -12,28 +12,11 @@ use crate::Document;
 use crate::Position;
 use crate::Row;
 use crate::StatusLine;
+use crate::StatusMessage;
 use crate::Terminal;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const QUIT_TIMES: u8 = 3;
-
-struct StatusMessage {
-    text: String,
-    time: Instant,
-}
-
-impl StatusMessage {
-    fn from(message: &str) -> Self {
-        Self {
-            time: Instant::now(),
-            text: message.to_string(),
-        }
-    }
-
-    pub fn set_status(&mut self, message: &str) {
-        self.text = message.to_string();
-    }
-}
 
 pub struct Editor {
     should_quit: bool,
@@ -49,11 +32,14 @@ pub struct Editor {
 impl Editor {
     pub fn run(&mut self) {
         loop {
+            if self.should_quit {
+                if let Err(error) = self.quit() {
+                    die(&error);
+                }
+                break;
+            }
             if let Err(error) = self.refresh_screen() {
                 die(&error);
-            }
-            if self.should_quit {
-                break;
             }
             if let Err(error) = self.process_keypress() {
                 die(&error);
@@ -95,32 +81,27 @@ impl Editor {
 
 // Utilities
 impl Editor {
-    fn refresh_screen(&self) -> Result<(), std::io::Error> {
-        Terminal::cursor_hide();
+    fn quit(&self) -> Result<(), std::io::Error> {
         Terminal::clear_screen();
         Terminal::cursor_position(&Position::default());
-        if self.should_quit {
-            Terminal::clear_screen();
-            println!("Goodbye!\r");
-        } else {
-            self.draw_rows();
-            self.draw_status_bar();
-            self.draw_message_bar();
-            Terminal::cursor_position(&Position {
-                x: self.cursor_position.x.saturating_sub(self.offset.x),
-                y: self.cursor_position.y.saturating_sub(self.offset.y),
-            });
-        }
-        Terminal::cursor_show();
+        println!("Goodbye!\r");
         Terminal::flush()
     }
 
-    fn draw_welcome_message(&self) {
-        let welcome_message = format!("Hecto editor -- version {}", VERSION);
-        let welcome_message =
-            utils::centered_text(&welcome_message, self.terminal.size().width as usize);
-        let welcome_message = format!("~{}", welcome_message);
-        println!("{}\r", welcome_message);
+    pub fn refresh_screen(&self) -> Result<(), std::io::Error> {
+        Terminal::cursor_hide();
+        Terminal::clear_screen();
+        Terminal::cursor_position(&Position::default());
+        if self.document.is_empty() {
+            self.draw_dashboard();
+        } else {
+            self.draw_rows();
+        };
+        self.draw_status_bar();
+        self.draw_message_bar();
+        Terminal::cursor_position(&self.cursor_position.saturating_sub(&self.offset));
+        Terminal::cursor_show();
+        Terminal::flush()
     }
 
     fn draw_row(&self, row: &Row) {
@@ -129,6 +110,25 @@ impl Editor {
         let end = self.offset.x.saturating_add(width);
         let row = row.render(start, end);
         println!("{}\r", row)
+    }
+
+    fn draw_welcome_message(&self) {
+        let welcome_message = format!("Hecto editor -- version {}", VERSION);
+        let welcome_message =
+            utils::centered_text(&welcome_message, self.terminal.size().width as usize);
+        println!("~{}\r", welcome_message);
+    }
+
+    fn draw_dashboard(&self) {
+        let height = self.terminal.size().height;
+        for terminal_row in 0..height {
+            Terminal::clear_current_line();
+            if terminal_row == height / 3 {
+                self.draw_welcome_message();
+            } else {
+                println!("~\r");
+            }
+        }
     }
 
     fn draw_rows(&self) {
@@ -140,8 +140,6 @@ impl Editor {
                 .row(self.offset.y.saturating_add(terminal_row as usize))
             {
                 self.draw_row(row);
-            } else if self.document.is_empty() && terminal_row == height / 3 {
-                self.draw_welcome_message();
             } else {
                 println!("~\r");
             }
@@ -173,19 +171,26 @@ impl Editor {
         }
     }
 
+    fn quit_confirmation(&mut self) {
+        self.status_message.set_status(&format!(
+            "WARNING! File has unsaved changes. Press Ctrl-Q {} more times to quit.",
+            self.quit_times
+        ));
+    }
+
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => {
-                if self.quit_times > 0 && self.document.is_dirty() {
-                    self.status_message = StatusMessage::from(&format!(
-                        "WARNING! File has unsaved changes. Press Ctrl-Q {} more times to quit.",
-                        self.quit_times
-                    ));
+                if !self.document.is_dirty() {
+                    self.should_quit = true;
+                    return Ok(());
+                }
+                if self.quit_times > 0 {
+                    self.quit_confirmation();
                     self.quit_times -= 1;
                     return Ok(());
                 }
-                self.should_quit = true
             }
             Key::Ctrl('s') => self.save(),
             Key::Char(c) => {
@@ -212,7 +217,7 @@ impl Editor {
         self.scroll();
         if self.quit_times < QUIT_TIMES {
             self.quit_times = QUIT_TIMES;
-            self.status_message = StatusMessage::from("");
+            self.status_message.set_status("");
         }
         Ok(())
     }
@@ -301,7 +306,8 @@ impl Editor {
     fn prompt(&mut self, prompt: &str) -> Result<Option<String>, std::io::Error> {
         let mut result = String::new();
         loop {
-            self.status_message = StatusMessage::from(&format!("{}{}", prompt, result));
+            self.status_message
+                .set_status(&format!("{}{}", prompt, result));
             self.refresh_screen()?;
             match Terminal::read_key()? {
                 Key::Backspace => result.truncate(result.len().saturating_sub(1)),
@@ -319,7 +325,7 @@ impl Editor {
             }
         }
 
-        self.status_message = StatusMessage::from("");
+        self.status_message.set_status("");
         if result.is_empty() {
             Ok(None)
         } else {
@@ -329,19 +335,20 @@ impl Editor {
 
     fn save(&mut self) {
         if self.document.file_name.is_none() {
-            let new_name = self.prompt("Save as: ").unwrap_or(None);
-            if new_name.is_none() {
-                self.status_message = StatusMessage::from("Save aborted.");
+            if let Some(new_name) = self.prompt("Save as: ").unwrap_or(None) {
+                self.document.file_name = Some(new_name);
+            } else {
+                self.status_message.set_status("Save aborted.");
                 return;
             }
-            self.document.file_name = new_name;
         }
 
-        self.status_message = if self.document.save().is_ok() {
-            StatusMessage::from("File saved successfully.")
-        } else {
-            StatusMessage::from("Error writing file!")
-        }
+        self.status_message
+            .set_status(if self.document.save().is_ok() {
+                "File saved successfully."
+            } else {
+                "Error writing file!"
+            })
     }
 }
 
