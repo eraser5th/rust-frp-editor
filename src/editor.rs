@@ -1,16 +1,19 @@
 use std::env;
 use std::time::Duration;
 use std::time::Instant;
-use termion::color;
 use termion::event::Key;
 
+use crate::status_line::components::StatusLineFileNameComponent;
+use crate::status_line::components::StatusLineLineIndicatorComponent;
+use crate::status_line::components::StatusLineModifiedComponent;
+use crate::status_line::StatusLineComponent;
+use crate::utils;
 use crate::Document;
 use crate::Position;
 use crate::Row;
+use crate::StatusLine;
 use crate::Terminal;
 
-const STATUS_FG_COLOR: color::Rgb = color::Rgb(63, 63, 63);
-const STATUS_BG_COLOR: color::Rgb = color::Rgb(239, 239, 239);
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const QUIT_TIMES: u8 = 3;
 
@@ -113,13 +116,10 @@ impl Editor {
     }
 
     fn draw_welcome_message(&self) {
-        let mut welcome_message = format!("Hecto editor -- version {}", VERSION);
-        let width = self.terminal.size().width as usize;
-        let len = welcome_message.len();
-        let padding = width.saturating_sub(len) / 2;
-        let spaces = " ".repeat(padding.saturating_sub(1));
-        welcome_message = format!("~{}{}", spaces, welcome_message);
-        welcome_message.truncate(width);
+        let welcome_message = format!("Hecto editor -- version {}", VERSION);
+        let welcome_message =
+            utils::centered_text(&welcome_message, self.terminal.size().width as usize);
+        let welcome_message = format!("~{}", welcome_message);
         println!("{}\r", welcome_message);
     }
 
@@ -149,41 +149,18 @@ impl Editor {
     }
 
     fn draw_status_bar(&self) {
-        let width = self.terminal.size().width as usize;
-        let modified_indicator = if self.document.is_dirty() {
-            " (modified)"
-        } else {
-            ""
-        };
+        let components: Vec<StatusLineComponent> = vec![
+            StatusLineFileNameComponent::new(self.document.file_name.clone()),
+            StatusLineModifiedComponent::new(self.document.is_dirty()),
+            StatusLineLineIndicatorComponent::new(self.cursor_position.y, self.document.len()),
+        ];
 
-        let file_name = if let Some(name) = &self.document.file_name {
-            let mut name = name.clone();
-            name.truncate(20);
-            name
-        } else {
-            "[No Name]".to_string()
-        };
-
-        let line_indicator = format!(
-            "{}/{}",
-            self.cursor_position.y.saturating_add(1),
-            self.document.len()
-        );
-
-        let mut status = format!(
-            "{} - {} {}{}",
-            file_name,
-            modified_indicator,
-            line_indicator,
-            &" ".repeat(width)
-        );
-        status.truncate(width);
-
-        Terminal::set_bg_color(STATUS_BG_COLOR);
-        Terminal::set_fg_color(STATUS_FG_COLOR);
-        println!("{}\r", status);
-        Terminal::reset_bg_color();
-        Terminal::reset_fg_color();
+        StatusLine {
+            components,
+            width: self.terminal.size().width as usize,
+            separator: " ".to_string(),
+        }
+        .draw();
     }
 
     fn draw_message_bar(&self) {
