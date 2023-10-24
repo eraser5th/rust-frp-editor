@@ -17,6 +17,10 @@ impl From<&str> for Row {
 }
 
 impl Row {
+    pub fn to_string(&self) -> String {
+        self.string.clone()
+    }
+
     pub fn render(&self, start: usize, end: usize) -> String {
         let end = cmp::min(end, self.string.len());
         let start = cmp::min(start, end);

@@ -1,6 +1,7 @@
 pub mod document;
 pub mod editor;
 pub mod position;
+pub mod prompt;
 pub mod row;
 pub mod status_line;
 pub mod status_message;

@@ -182,15 +182,13 @@ impl Editor {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => {
-                if !self.document.is_dirty() {
+                if !self.document.is_dirty() || self.quit_times <= 0 {
                     self.should_quit = true;
-                    return Ok(());
-                }
-                if self.quit_times > 0 {
+                } else {
                     self.quit_confirmation();
                     self.quit_times -= 1;
-                    return Ok(());
                 }
+                return Ok(());
             }
             Key::Ctrl('s') => self.save(),
             Key::Char(c) => {
@@ -303,13 +301,20 @@ impl Editor {
         }
     }
 
-    fn prompt(&mut self, prompt: &str) -> Result<Option<String>, std::io::Error> {
+    fn prompt2<C>(
+        &mut self,
+        prompt: &str,
+        mut callback: C,
+    ) -> Result<Option<String>, std::io::Error>
+    where
+        C: FnMut(&mut Self, Key, &String),
+    {
         let mut result = String::new();
         loop {
-            self.status_message
-                .set_status(&format!("{}{}", prompt, result));
+            self.status_message = StatusMessage::from(&format!("{}{}", prompt, result));
             self.refresh_screen()?;
-            match Terminal::read_key()? {
+            let key = Terminal::read_key()?;
+            match key {
                 Key::Backspace => result.truncate(result.len().saturating_sub(1)),
                 Key::Char('\n') => break,
                 Key::Char(c) => {
@@ -323,19 +328,18 @@ impl Editor {
                 }
                 _ => (),
             }
+            callback(self, key, &result);
         }
-
-        self.status_message.set_status("");
+        self.status_message = StatusMessage::from(&String::new());
         if result.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(result))
+            return Ok(None);
         }
+        Ok(Some(result))
     }
 
     fn save(&mut self) {
         if self.document.file_name.is_none() {
-            if let Some(new_name) = self.prompt("Save as: ").unwrap_or(None) {
+            if let Some(new_name) = self.prompt2("Save as: ", |_, _, _| {}).unwrap_or(None) {
                 self.document.file_name = Some(new_name);
             } else {
                 self.status_message.set_status("Save aborted.");
