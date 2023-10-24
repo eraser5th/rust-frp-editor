@@ -15,7 +15,7 @@ impl Document {
     pub fn open(filename: &str) -> Result<Self, std::io::Error> {
         let contents = fs::read_to_string(filename)?;
         Ok(Self {
-            rows: contents.lines().map(|l| Row::from(l)).collect(),
+            rows: contents.lines().map(Row::from).collect(),
             file_name: Some(filename.to_string()),
             dirty: false,
         })
@@ -50,7 +50,7 @@ impl Document {
     }
 
     pub fn insert(&mut self, at: &Position, c: char) {
-        if at.y > self.len() {
+        if at.y > self.rows.len() {
             return;
         }
         self.dirty = true;
@@ -58,7 +58,7 @@ impl Document {
             self.insert_newline(at);
             return;
         }
-        if at.y == self.len() {
+        if at.y == self.rows.len() {
             let mut row = Row::default();
             row.insert(0, c);
             self.rows.push(row);
@@ -69,7 +69,7 @@ impl Document {
     }
 
     pub fn delete(&mut self, at: &Position) {
-        let len = self.len();
+        let len = self.rows.len();
         if at.y >= len {
             return;
         }
@@ -85,11 +85,14 @@ impl Document {
     }
 
     fn insert_newline(&mut self, at: &Position) {
-        if at.y == self.len() {
+        if at.y > self.rows.len() {
+            return;
+        }
+        if at.y == self.rows.len() {
             self.rows.push(Row::default());
             return;
         }
         let new_row = self.rows.get_mut(at.y).unwrap().split(at.x);
-        self.rows.insert(at.y + 1, new_row);
+        self.rows.insert(at.y.saturating_add(1), new_row);
     }
 }
