@@ -145,6 +145,11 @@ impl Editor {
 
     fn draw_status_bar(&self) {
         let width = self.terminal.size().width as usize;
+        let modified_indicator = if self.document.is_dirty() {
+            " (modified)"
+        } else {
+            ""
+        };
 
         let file_name = if let Some(name) = &self.document.file_name {
             let mut name = name.clone();
@@ -160,7 +165,13 @@ impl Editor {
             self.document.len()
         );
 
-        let mut status = format!("{} - {}{}", file_name, line_indicator, &" ".repeat(width));
+        let mut status = format!(
+            "{} - {} {}{}",
+            file_name,
+            modified_indicator,
+            line_indicator,
+            &" ".repeat(width)
+        );
         status.truncate(width);
 
         Terminal::set_bg_color(STATUS_BG_COLOR);
