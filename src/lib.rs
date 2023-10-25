@@ -1,5 +1,6 @@
 pub mod document;
 pub mod editor;
+pub mod frp_editor;
 pub mod position;
 pub mod prompt;
 pub mod row;

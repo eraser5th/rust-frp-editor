@@ -8,8 +8,10 @@
     clippy::else_if_without_else
 )]
 
-use rust_frp_editor::editor::Editor;
+use rust_frp_editor::frp_editor::Editor;
+use sodium_rust::SodiumCtx;
 
 fn main() {
-    Editor::default().run();
+    let sodium_ctx = SodiumCtx::new();
+    Editor::new(&sodium_ctx).run(&sodium_ctx);
 }

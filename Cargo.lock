@@ -15,6 +15,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a08173bc88b7955d1b3145aa561539096c421ac8debde8cbc3612ec635fee29b"
 
 [[package]]
+name = "log"
+version = "0.4.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
+
+[[package]]
 name = "numtoa"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -42,8 +48,18 @@ dependencies = [
 name = "rust-frp-editor"
 version = "0.1.0"
 dependencies = [
+ "sodium-rust",
  "termion",
  "unicode-segmentation",
+]
+
+[[package]]
+name = "sodium-rust"
+version = "2.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7918aa166c2eee9f29024dccc7000c10eb96d86d3468e63c6563d5ed933e4df2"
+dependencies = [
+ "log",
 ]
 
 [[package]]
