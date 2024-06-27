@@ -1,4 +1,12 @@
 use std::fmt;
+
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
 #[derive(Default, Clone)]
 pub struct Position {
     pub x: usize,
@@ -12,6 +20,15 @@ impl fmt::Display for Position {
 }
 
 impl Position {
+    pub fn move_to(&self, d: &Direction) -> Self {
+        match d {
+            Direction::Down => self.down(),
+            Direction::Up => self.up(),
+            Direction::Left => self.left(),
+            Direction::Right => self.right(),
+        }
+    }
+
     pub fn up(&self) -> Self {
         Self {
             x: self.x,

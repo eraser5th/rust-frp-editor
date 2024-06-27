@@ -1,3 +1,4 @@
+use sodium_rust::{Cell, SodiumCtx};
 use std::io::{self, stdout, Write};
 use termion::color;
 use termion::event::Key;
@@ -6,30 +7,33 @@ use termion::raw::{IntoRawMode, RawTerminal};
 
 use super::Position;
 
+#[derive(Clone)]
 pub struct Size {
     pub width: u16,
     pub height: u16,
 }
 
+impl Size {
+    pub fn is_in(&self, p: &Position) -> bool {
+        p.x < self.width as usize && p.y < self.height as usize
+    }
+}
+
 pub struct Terminal {
-    size: Size,
+    pub size: Cell<Size>,
     _stdout: RawTerminal<std::io::Stdout>,
 }
 
 impl Terminal {
-    pub fn default() -> Result<Self, std::io::Error> {
+    pub fn new(sodium_ctx: &SodiumCtx) -> Result<Self, std::io::Error> {
         let size = termion::terminal_size()?;
         Ok(Self {
-            size: Size {
+            size: sodium_ctx.new_cell(Size {
                 width: size.0,
                 height: size.1.saturating_sub(2),
-            },
+            }),
             _stdout: stdout().into_raw_mode()?,
         })
-    }
-
-    pub fn size(&self) -> &Size {
-        &self.size
     }
 
     pub fn clear_screen() {

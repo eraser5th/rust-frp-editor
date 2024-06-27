@@ -7,12 +7,14 @@ use sodium_rust::Operational;
 use sodium_rust::SodiumCtx;
 use termion::event::Key;
 
+use super::keyboard::ArrowKey;
+use super::terminal::Size;
 use super::Keyboard;
 use super::Position;
 use super::Terminal;
 
 pub struct Editor {
-    cursor_position: Cell<Position>,
+    cursor_position: Arc<Cell<Position>>,
     should_quit: bool,
     keyboard: Arc<Keyboard>,
     terminal: Arc<Terminal>,
@@ -21,16 +23,16 @@ pub struct Editor {
 impl Editor {
     pub fn new(sodium_ctx: &SodiumCtx) -> Self {
         Self {
-            cursor_position: Cell::new(&sodium_ctx, Position::default()),
+            cursor_position: Arc::new(sodium_ctx.new_cell(Position::default())),
             should_quit: false,
             keyboard: Arc::new(Keyboard::new(&sodium_ctx)),
-            terminal: Arc::new(Terminal::default().expect("Failed to initialize terminal")),
+            terminal: Arc::new(Terminal::new(sodium_ctx).expect("Failed to initialize terminal")),
         }
     }
 }
 
 impl Editor {
-    pub fn run<'a>(&'a self, sodium_ctx: &'a SodiumCtx) {
+    pub fn run(&self, sodium_ctx: &SodiumCtx) {
         Terminal::clear_screen();
         Terminal::cursor_position(&Position::default());
         Terminal::flush().unwrap();
@@ -40,20 +42,18 @@ impl Editor {
             Operational::updates(&cursor_position.cell())
                 .listen(|p: &Position| Terminal::cursor_position(p));
 
-            let update = self
+            let next_position = self
                 .keyboard
-                .key_pressed
-                .snapshot(&cursor_position.cell(), |k: &Key, v: &Position| match k {
-                    Key::Down => v.down(),
-                    Key::Up => v.up(),
-                    Key::Left => v.left(),
-                    Key::Right => v.right(),
-                    _ => v.clone(),
-                })
-                .filter(|p: &Position| {
-                    p.x < self.terminal.size().width as usize
-                        && p.y < self.terminal.size().height as usize
+                .arrow_key_pressed
+                .snapshot(&cursor_position.cell(), |k: &ArrowKey, p: &Position| {
+                    p.move_to(&k.to_direction())
                 });
+
+            let update = next_position
+                .snapshot(&self.terminal.size, |p: &Position, s: &Size| {
+                    s.is_in(p).then(|| p.clone())
+                })
+                .filter_option();
 
             cursor_position.loop_(&update.hold(Position::default()));
         });
