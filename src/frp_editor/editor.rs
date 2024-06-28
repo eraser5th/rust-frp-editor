@@ -13,6 +13,15 @@ use super::Keyboard;
 use super::Position;
 use super::Terminal;
 
+#[derive(Clone)]
+enum Command {
+    NOP,
+    Quit,
+    Save,
+    Undo,
+    Redo,
+}
+
 pub struct Editor {
     cursor_position: Arc<Cell<Position>>,
     should_quit: bool,
@@ -32,14 +41,12 @@ impl Editor {
 }
 
 impl Editor {
-    pub fn run(&self, sodium_ctx: &SodiumCtx) {
+    pub fn run(&self, sodium_ctx: &SodiumCtx) -> Result<(), std::io::Error> {
         Terminal::clear_screen();
-        Terminal::cursor_position(&Position::default());
-        Terminal::flush().unwrap();
 
         sodium_ctx.transaction(|| {
             let cursor_position: CellLoop<Position> = sodium_ctx.new_cell_loop();
-            Operational::updates(&cursor_position.cell())
+            Operational::value(&cursor_position.cell())
                 .listen(|p: &Position| Terminal::cursor_position(p));
 
             let next_position = self
@@ -58,14 +65,22 @@ impl Editor {
             cursor_position.loop_(&update.hold(Position::default()));
         });
 
-        self.keyboard.key_pressed.listen(|k: &Key| match k {
-            Key::Char('q') => panic!("q pressed"),
+        let command = self.keyboard.key_pressed.map(|k: &Key| match k {
+            Key::Ctrl('q') => Command::Quit,
+            Key::Ctrl('s') => Command::Save,
+            Key::Ctrl('z') => Command::Undo,
+            Key::Ctrl('Z') => Command::Redo,
+            _ => Command::NOP,
+        });
+
+        command.listen(|c: &Command| match c {
+            Command::Quit => panic!("Quit application"),
             _ => (),
         });
 
         loop {
-            Terminal::flush().unwrap();
-            self.keyboard.observe_keypress().unwrap();
+            Terminal::flush()?;
+            self.keyboard.observe_keypress()?;
         }
     }
 

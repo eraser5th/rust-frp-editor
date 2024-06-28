@@ -13,5 +13,5 @@ use sodium_rust::SodiumCtx;
 
 fn main() {
     let sodium_ctx = SodiumCtx::new();
-    Editor::new(&sodium_ctx).run(&sodium_ctx);
+    Editor::new(&sodium_ctx).run(&sodium_ctx).unwrap();
 }
