@@ -7,8 +7,8 @@ use sodium_rust::Operational;
 use sodium_rust::SodiumCtx;
 use termion::event::Key;
 
-use super::keyboard::ArrowKey;
 use super::terminal::Size;
+use super::Direction;
 use super::Keyboard;
 use super::Position;
 use super::Terminal;
@@ -45,8 +45,8 @@ impl Editor {
             let next_position = self
                 .keyboard
                 .arrow_key_pressed
-                .snapshot(&cursor_position.cell(), |k: &ArrowKey, p: &Position| {
-                    p.move_to(&k.to_direction())
+                .snapshot(&cursor_position.cell(), |d: &Direction, p: &Position| {
+                    p.move_to(d)
                 });
 
             let update = next_position
