@@ -9,21 +9,21 @@ use termion::input::TermRead;
 use super::direction::Direction;
 
 pub struct Keyboard {
-    key_pressed_sink: StreamSink<Key>,
-    pub key_pressed: Stream<Key>,
-    pub arrow_key_pressed: Stream<Direction>,
+    ssink_key_pressed: StreamSink<Key>,
+    pub s_key_pressed: Stream<Key>,
+    pub s_arrow_key_pressed: Stream<Direction>,
 }
 
 impl Keyboard {
     pub fn new(sodium_ctx: &SodiumCtx) -> Self {
-        let key_pressed_sink = sodium_ctx.new_stream_sink();
-        let key_pressed = key_pressed_sink.stream();
-        let arrow_key_pressed = key_pressed.map(|k: &Key| to_direction(k)).filter_option();
+        let ssink_key_pressed = sodium_ctx.new_stream_sink();
+        let s_key_pressed = ssink_key_pressed.stream();
+        let s_arrow_key_pressed = s_key_pressed.map(|k: &Key| to_direction(k)).filter_option();
 
         Self {
-            key_pressed_sink,
-            key_pressed,
-            arrow_key_pressed,
+            ssink_key_pressed,
+            s_key_pressed,
+            s_arrow_key_pressed,
         }
     }
 
@@ -33,7 +33,7 @@ impl Keyboard {
                 break key?;
             }
         };
-        self.key_pressed_sink.send(pressed_key);
+        self.ssink_key_pressed.send(pressed_key);
         Ok(())
     }
 }

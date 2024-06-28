@@ -17,14 +17,14 @@ impl Size {
 }
 
 pub struct Terminal {
-    pub size: Cell<Size>,
+    pub c_size: Cell<Size>,
 }
 
 impl Terminal {
     pub fn new(sodium_ctx: &SodiumCtx) -> Result<Self, std::io::Error> {
         let size = termion::terminal_size()?;
         Ok(Self {
-            size: sodium_ctx.new_cell(Size {
+            c_size: sodium_ctx.new_cell(Size {
                 width: size.0,
                 height: size.1.saturating_sub(2),
             }),

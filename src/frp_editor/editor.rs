@@ -72,11 +72,11 @@ impl Editor {
     pub fn new(sodium_ctx: &SodiumCtx, stdout: &Arc<RawTerminal<Stdout>>) -> Self {
         let keyboard = Keyboard::new(&sodium_ctx);
         let terminal = Terminal::new(&sodium_ctx).expect("Failed to initialize terminal");
-        let s_quit = command(&keyboard.key_pressed)
+        let s_quit = command(&keyboard.s_key_pressed)
             .filter(|c: &Command| *c == Command::Quit)
             .map(|_: &Command| ());
 
-        let c_cursor_position = cursor_position(&keyboard.arrow_key_pressed, &terminal.size);
+        let c_cursor_position = cursor_position(&keyboard.s_arrow_key_pressed, &terminal.c_size);
 
         Self {
             keyboard,
@@ -87,8 +87,8 @@ impl Editor {
     }
 }
 
-fn command(key_pressed: &Stream<Key>) -> Stream<Command> {
-    key_pressed.map(|k: &Key| match k {
+fn command(s_key_pressed: &Stream<Key>) -> Stream<Command> {
+    s_key_pressed.map(|k: &Key| match k {
         Key::Ctrl('q') => Command::Quit,
         Key::Ctrl('s') => Command::Save,
         Key::Ctrl('z') => Command::Undo,
@@ -98,11 +98,11 @@ fn command(key_pressed: &Stream<Key>) -> Stream<Command> {
 }
 
 fn cursor_position(
-    arrow_key_pressed: &Stream<Direction>,
-    terminal_size: &Cell<Size>,
+    s_arrow_key_pressed: &Stream<Direction>,
+    c_terminal_size: &Cell<Size>,
 ) -> Cell<Position> {
-    arrow_key_pressed
-        .snapshot(terminal_size, |d: &Direction, s: &Size| {
+    s_arrow_key_pressed
+        .snapshot(c_terminal_size, |d: &Direction, s: &Size| {
             (d.clone(), s.clone())
         })
         .accum(
