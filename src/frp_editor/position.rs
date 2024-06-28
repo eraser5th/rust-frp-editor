@@ -1,11 +1,6 @@
 use std::fmt;
 
-pub enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
+use super::direction::Direction;
 
 #[derive(Default, Clone)]
 pub struct Position {
