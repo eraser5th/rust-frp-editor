@@ -3,7 +3,6 @@ use std::process;
 use std::sync::Arc;
 
 use sodium_rust::Cell;
-use sodium_rust::CellLoop;
 use sodium_rust::Operational;
 use sodium_rust::SodiumCtx;
 use sodium_rust::Stream;
