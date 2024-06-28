@@ -1,8 +1,6 @@
 use sodium_rust::{Cell, SodiumCtx};
 use std::io::{self, Write};
 use termion::color;
-use termion::event::Key;
-use termion::input::TermRead;
 
 use super::Position;
 
@@ -46,14 +44,6 @@ impl Terminal {
 
     pub fn flush() -> Result<(), std::io::Error> {
         io::stdout().flush()
-    }
-
-    pub fn read_key() -> Result<Key, std::io::Error> {
-        loop {
-            if let Some(key) = io::stdin().lock().keys().next() {
-                return key;
-            }
-        }
     }
 
     pub fn cursor_hide() {

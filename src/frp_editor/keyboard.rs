@@ -1,9 +1,10 @@
+use std::io;
+
 use sodium_rust::SodiumCtx;
 use sodium_rust::Stream;
 use sodium_rust::StreamSink;
 use termion::event::Key;
-
-use crate::Terminal;
+use termion::input::TermRead;
 
 use super::direction::Direction;
 
@@ -27,7 +28,11 @@ impl Keyboard {
     }
 
     pub fn observe_keypress(&self) -> Result<(), std::io::Error> {
-        let pressed_key = Terminal::read_key()?;
+        let pressed_key = loop {
+            if let Some(key) = io::stdin().lock().keys().next() {
+                break key?;
+            }
+        };
         self.key_pressed_sink.send(pressed_key);
         Ok(())
     }
