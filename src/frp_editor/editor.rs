@@ -1,9 +1,6 @@
-use core::panic;
-use std::io::stdout;
 use std::io::Stdout;
 use std::process;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use sodium_rust::Cell;
 use sodium_rust::CellLoop;
@@ -30,70 +27,64 @@ enum Command {
 
 pub struct Editor {
     keyboard: Keyboard,
+    c_cursor_position: Cell<Position>,
+    s_quit: Stream<Arc<RawTerminal<Stdout>>>,
 }
 
+// Not FRP
 impl Editor {
-    pub fn new(sodium_ctx: &SodiumCtx, stdout: &Arc<Mutex<RawTerminal<Stdout>>>) -> Self {
-        Terminal::clear_screen();
-
-        let keyboard = Keyboard::new(&sodium_ctx);
-        let terminal = Terminal::new(&sodium_ctx).expect("Failed to initialize terminal");
-        let c_stdout = sodium_ctx.new_cell(stdout.clone());
-        let s_quit = command(&keyboard.key_pressed)
-            .filter(|c: &Command| *c == Command::Quit)
-            .snapshot1(&c_stdout);
-        s_quit.listen(|stdout: &Arc<Mutex<RawTerminal<Stdout>>>| Self::quit(stdout));
-
-        sodium_ctx.transaction(|| {
-            let cursor_position: CellLoop<Position> = sodium_ctx.new_cell_loop();
-            Operational::value(&cursor_position.cell())
-                .listen(|p: &Position| Terminal::cursor_position(p));
-
-            let next_position = keyboard
-                .arrow_key_pressed
-                .snapshot3(
-                    &cursor_position.cell(),
-                    &terminal.size,
-                    |d: &Direction, p: &Position, s: &Size| {
-                        let next_position = p.move_to(d);
-                        s.is_in(&next_position).then_some(next_position)
-                    },
-                )
-                .filter_option();
-
-            cursor_position.loop_(&next_position.hold(Position::default()));
-        });
-
-        Self { keyboard }
-    }
-}
-
-impl Editor {
+    /**
+     * Observe keyboard and run application
+     */
     pub fn run(&self) -> Result<(), std::io::Error> {
+        Terminal::clear_screen();
+        Terminal::cursor_position(&Position::default());
+
+        Operational::updates(&self.c_cursor_position).listen(Terminal::cursor_position);
+        self.s_quit
+            .listen(|stdout: &Arc<RawTerminal<Stdout>>| Self::quit(stdout));
+
         loop {
             Terminal::flush()?;
             self.keyboard.observe_keypress()?;
         }
     }
 
-    fn quit(stdout: &Arc<Mutex<RawTerminal<Stdout>>>) {
+    fn quit(stdout: &Arc<RawTerminal<Stdout>>) {
         Terminal::clear_screen();
-        let stdout = stdout.lock().expect("ahoy");
-        stdout.suspend_raw_mode().expect("peko");
+        Terminal::cursor_position(&Position::default());
+        Terminal::flush().unwrap();
+
+        stdout.suspend_raw_mode().unwrap();
+
         println!("Bye!!!\r\n");
+
         process::exit(0);
     }
+}
 
-    /*
-    fn process_key(&self, key: &Key) {
-        match key {
-            Key::Char('q') => panic!("q pressed"),
-            Key::Char(c) => println!("{c}\r"),
-            Key::Up | Key::Right | Key::Down | Key::Left => self.move_cursor(key),
-            _ => (),
-        };
+// FRP
+impl Editor {
+    /**
+     * Build the whole of FRP Network of application
+     */
+    pub fn new(sodium_ctx: &SodiumCtx, stdout: &Arc<RawTerminal<Stdout>>) -> Self {
+        let keyboard = Keyboard::new(&sodium_ctx);
+        let terminal = Terminal::new(&sodium_ctx).expect("Failed to initialize terminal");
+        let c_stdout = sodium_ctx.new_cell(stdout.clone());
+        let s_quit = command(&keyboard.key_pressed)
+            .filter(|c: &Command| *c == Command::Quit)
+            .snapshot1(&c_stdout);
+
+        let c_cursor_position =
+            cursor_position(sodium_ctx, &keyboard.arrow_key_pressed, &terminal.size);
+
+        Self {
+            keyboard,
+            c_cursor_position,
+            s_quit,
+        }
     }
-    */
 }
 
 fn command(key_pressed: &Stream<Key>) -> Stream<Command> {
@@ -103,6 +94,30 @@ fn command(key_pressed: &Stream<Key>) -> Stream<Command> {
         Key::Ctrl('z') => Command::Undo,
         Key::Ctrl('Z') => Command::Redo,
         _ => Command::NOP,
+    })
+}
+
+fn cursor_position(
+    sodium_ctx: &SodiumCtx,
+    arrow_key_pressed: &Stream<Direction>,
+    terminal_size: &Cell<Size>,
+) -> Cell<Position> {
+    sodium_ctx.transaction(|| {
+        let cl_cursor_position: CellLoop<Position> = sodium_ctx.new_cell_loop();
+
+        let next_position = arrow_key_pressed
+            .snapshot3(
+                &cl_cursor_position.cell(),
+                &terminal_size,
+                |d: &Direction, p: &Position, s: &Size| {
+                    let next_position = p.move_to(d);
+                    s.is_in(&next_position).then_some(next_position)
+                },
+            )
+            .filter_option();
+
+        cl_cursor_position.loop_(&next_position.hold(Position::default()));
+        cl_cursor_position.cell()
     })
 }
 
