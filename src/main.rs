@@ -30,5 +30,5 @@ fn main() {
 
     let sodium_ctx = SodiumCtx::new();
 
-    Editor::new(&sodium_ctx, &stdout).run(&sodium_ctx).unwrap();
+    Editor::new(&sodium_ctx, &stdout).run().unwrap();
 }

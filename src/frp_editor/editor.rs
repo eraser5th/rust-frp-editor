@@ -29,53 +29,47 @@ enum Command {
 }
 
 pub struct Editor {
-    keyboard: Arc<Keyboard>,
-    terminal: Arc<Terminal>,
-    c_stdout: Cell<Arc<Mutex<RawTerminal<Stdout>>>>,
+    keyboard: Keyboard,
 }
 
 impl Editor {
     pub fn new(sodium_ctx: &SodiumCtx, stdout: &Arc<Mutex<RawTerminal<Stdout>>>) -> Self {
-        Self {
-            keyboard: Arc::new(Keyboard::new(&sodium_ctx)),
-            terminal: Arc::new(Terminal::new(&sodium_ctx).expect("Failed to initialize terminal")),
-            c_stdout: sodium_ctx.new_cell(stdout.clone()),
-        }
-    }
-}
-
-impl Editor {
-    pub fn run(&self, sodium_ctx: &SodiumCtx) -> Result<(), std::io::Error> {
         Terminal::clear_screen();
+
+        let keyboard = Keyboard::new(&sodium_ctx);
+        let terminal = Terminal::new(&sodium_ctx).expect("Failed to initialize terminal");
+        let c_stdout = sodium_ctx.new_cell(stdout.clone());
+        let s_quit = command(&keyboard.key_pressed)
+            .filter(|c: &Command| *c == Command::Quit)
+            .snapshot1(&c_stdout);
+        s_quit.listen(|stdout: &Arc<Mutex<RawTerminal<Stdout>>>| Self::quit(stdout));
 
         sodium_ctx.transaction(|| {
             let cursor_position: CellLoop<Position> = sodium_ctx.new_cell_loop();
             Operational::value(&cursor_position.cell())
                 .listen(|p: &Position| Terminal::cursor_position(p));
 
-            let next_position = self
-                .keyboard
+            let next_position = keyboard
                 .arrow_key_pressed
-                .snapshot(&cursor_position.cell(), |d: &Direction, p: &Position| {
-                    p.move_to(d)
-                });
-
-            let update = next_position
-                .snapshot(&self.terminal.size, |p: &Position, s: &Size| {
-                    s.is_in(p).then(|| p.clone())
-                })
+                .snapshot3(
+                    &cursor_position.cell(),
+                    &terminal.size,
+                    |d: &Direction, p: &Position, s: &Size| {
+                        let next_position = p.move_to(d);
+                        s.is_in(&next_position).then_some(next_position)
+                    },
+                )
                 .filter_option();
 
-            cursor_position.loop_(&update.hold(Position::default()));
+            cursor_position.loop_(&next_position.hold(Position::default()));
         });
 
-        let s_command = command(&self.keyboard.key_pressed);
-        let s_quit = s_command
-            .filter(|c: &Command| *c == Command::Quit)
-            .snapshot1(&self.c_stdout);
+        Self { keyboard }
+    }
+}
 
-        s_quit.listen(|stdout: &Arc<Mutex<RawTerminal<Stdout>>>| Self::quit(stdout));
-
+impl Editor {
+    pub fn run(&self) -> Result<(), std::io::Error> {
         loop {
             Terminal::flush()?;
             self.keyboard.observe_keypress()?;
