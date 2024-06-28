@@ -28,13 +28,14 @@ enum Command {
 pub struct Editor {
     keyboard: Keyboard,
     c_cursor_position: Cell<Position>,
-    s_quit: Stream<Arc<RawTerminal<Stdout>>>,
+    s_quit: Stream<()>,
+    c_stdout: Cell<Arc<RawTerminal<Stdout>>>,
 }
 
 // Not FRP
 impl Editor {
     /**
-     * Observe keyboard and run application
+     * Run application.
      */
     pub fn run(&self) -> Result<(), std::io::Error> {
         Terminal::clear_screen();
@@ -42,6 +43,7 @@ impl Editor {
 
         Operational::updates(&self.c_cursor_position).listen(Terminal::cursor_position);
         self.s_quit
+            .snapshot1(&self.c_stdout)
             .listen(|stdout: &Arc<RawTerminal<Stdout>>| Self::quit(stdout));
 
         loop {
@@ -71,18 +73,17 @@ impl Editor {
     pub fn new(sodium_ctx: &SodiumCtx, stdout: &Arc<RawTerminal<Stdout>>) -> Self {
         let keyboard = Keyboard::new(&sodium_ctx);
         let terminal = Terminal::new(&sodium_ctx).expect("Failed to initialize terminal");
-        let c_stdout = sodium_ctx.new_cell(stdout.clone());
         let s_quit = command(&keyboard.key_pressed)
             .filter(|c: &Command| *c == Command::Quit)
-            .snapshot1(&c_stdout);
+            .map(|_: &Command| ());
 
-        let c_cursor_position =
-            cursor_position(sodium_ctx, &keyboard.arrow_key_pressed, &terminal.size);
+        let c_cursor_position = cursor_position(&keyboard.arrow_key_pressed, &terminal.size);
 
         Self {
             keyboard,
             c_cursor_position,
             s_quit,
+            c_stdout: sodium_ctx.new_cell(stdout.clone()),
         }
     }
 }
@@ -98,27 +99,24 @@ fn command(key_pressed: &Stream<Key>) -> Stream<Command> {
 }
 
 fn cursor_position(
-    sodium_ctx: &SodiumCtx,
     arrow_key_pressed: &Stream<Direction>,
     terminal_size: &Cell<Size>,
 ) -> Cell<Position> {
-    sodium_ctx.transaction(|| {
-        let cl_cursor_position: CellLoop<Position> = sodium_ctx.new_cell_loop();
-
-        let next_position = arrow_key_pressed
-            .snapshot3(
-                &cl_cursor_position.cell(),
-                &terminal_size,
-                |d: &Direction, p: &Position, s: &Size| {
-                    let next_position = p.move_to(d);
-                    s.is_in(&next_position).then_some(next_position)
-                },
-            )
-            .filter_option();
-
-        cl_cursor_position.loop_(&next_position.hold(Position::default()));
-        cl_cursor_position.cell()
-    })
+    arrow_key_pressed
+        .snapshot(terminal_size, |d: &Direction, s: &Size| {
+            (d.clone(), s.clone())
+        })
+        .accum(
+            Position::default(),
+            |(d, s): &(Direction, Size), p: &Position| {
+                let next = p.move_to(d);
+                if s.is_in(&next) {
+                    next
+                } else {
+                    p.clone()
+                }
+            },
+        )
 }
 
 impl Editor {}
