@@ -117,5 +117,3 @@ fn cursor_position(
             },
         )
 }
-
-impl Editor {}
