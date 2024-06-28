@@ -5,38 +5,19 @@ use termion::event::Key;
 
 use crate::Terminal;
 
-use super::position::Direction;
-
-#[derive(Clone)]
-pub enum ArrowKey {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
-impl ArrowKey {
-    pub fn to_direction(&self) -> Direction {
-        match self {
-            ArrowKey::Up => Direction::Up,
-            ArrowKey::Down => Direction::Down,
-            ArrowKey::Left => Direction::Left,
-            ArrowKey::Right => Direction::Right,
-        }
-    }
-}
+use super::direction::Direction;
 
 pub struct Keyboard {
     key_pressed_sink: StreamSink<Key>,
     pub key_pressed: Stream<Key>,
-    pub arrow_key_pressed: Stream<ArrowKey>,
+    pub arrow_key_pressed: Stream<Direction>,
 }
 
 impl Keyboard {
     pub fn new(sodium_ctx: &SodiumCtx) -> Self {
         let key_pressed_sink = sodium_ctx.new_stream_sink();
         let key_pressed = key_pressed_sink.stream();
-        let arrow_key_pressed = key_pressed.map(|k: &Key| to_arrow_key(k)).filter_option();
+        let arrow_key_pressed = key_pressed.map(|k: &Key| to_direction(k)).filter_option();
 
         Self {
             key_pressed_sink,
@@ -52,12 +33,12 @@ impl Keyboard {
     }
 }
 
-fn to_arrow_key(k: &Key) -> Option<ArrowKey> {
+fn to_direction(k: &Key) -> Option<Direction> {
     match k {
-        Key::Up => Some(ArrowKey::Up),
-        Key::Down => Some(ArrowKey::Down),
-        Key::Left => Some(ArrowKey::Left),
-        Key::Right => Some(ArrowKey::Right),
+        Key::Up => Some(Direction::Up),
+        Key::Down => Some(Direction::Down),
+        Key::Left => Some(Direction::Left),
+        Key::Right => Some(Direction::Right),
         _ => None,
     }
 }
