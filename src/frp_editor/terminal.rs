@@ -1,9 +1,8 @@
 use sodium_rust::{Cell, SodiumCtx};
-use std::io::{self, stdout, Write};
+use std::io::{self, Write};
 use termion::color;
 use termion::event::Key;
 use termion::input::TermRead;
-use termion::raw::{IntoRawMode, RawTerminal};
 
 use super::Position;
 
@@ -21,7 +20,6 @@ impl Size {
 
 pub struct Terminal {
     pub size: Cell<Size>,
-    _stdout: RawTerminal<std::io::Stdout>,
 }
 
 impl Terminal {
@@ -32,7 +30,6 @@ impl Terminal {
                 width: size.0,
                 height: size.1.saturating_sub(2),
             }),
-            _stdout: stdout().into_raw_mode()?,
         })
     }
 

@@ -8,10 +8,27 @@
     clippy::else_if_without_else
 )]
 
+use std::{
+    io::stdout,
+    sync::{Arc, Mutex},
+};
+
 use rust_frp_editor::frp_editor::Editor;
 use sodium_rust::SodiumCtx;
+use termion::raw::IntoRawMode;
 
 fn main() {
+    let stdout = Arc::new(Mutex::new(stdout().into_raw_mode().unwrap()));
+
+    let default_panic = std::panic::take_hook();
+    let cls_stdout = Arc::clone(&stdout);
+    std::panic::set_hook(Box::new(move |info| {
+        let stdout = cls_stdout.lock().unwrap();
+        stdout.suspend_raw_mode().unwrap();
+        default_panic(info);
+    }));
+
     let sodium_ctx = SodiumCtx::new();
-    Editor::new(&sodium_ctx).run(&sodium_ctx).unwrap();
+
+    Editor::new(&sodium_ctx, &stdout).run(&sodium_ctx).unwrap();
 }
