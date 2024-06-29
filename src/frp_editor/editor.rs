@@ -9,6 +9,7 @@ use sodium_rust::Stream;
 use termion::event::Key;
 use termion::raw::RawTerminal;
 
+use super::printer;
 use super::terminal::Size;
 use super::Direction;
 use super::Keyboard;
@@ -37,24 +38,24 @@ impl Editor {
      * Run application.
      */
     pub fn run(&self) -> Result<(), std::io::Error> {
-        Terminal::clear_screen();
-        Terminal::cursor_position(&Position::default());
+        printer::clear_screen();
+        printer::cursor_position(&Position::default());
 
-        Operational::updates(&self.c_cursor_position).listen(Terminal::cursor_position);
+        Operational::updates(&self.c_cursor_position).listen(printer::cursor_position);
         self.s_quit
             .snapshot1(&self.c_stdout)
             .listen(|stdout: &Arc<RawTerminal<Stdout>>| Self::quit(stdout));
 
         loop {
-            Terminal::flush()?;
+            printer::flush()?;
             self.keyboard.observe_keypress()?;
         }
     }
 
     fn quit(stdout: &Arc<RawTerminal<Stdout>>) {
-        Terminal::clear_screen();
-        Terminal::cursor_position(&Position::default());
-        Terminal::flush().unwrap();
+        printer::clear_screen();
+        printer::cursor_position(&Position::default());
+        printer::flush().unwrap();
 
         stdout.suspend_raw_mode().unwrap();
 
@@ -107,12 +108,12 @@ fn cursor_position(
         })
         .accum(
             Position::default(),
-            |(d, s): &(Direction, Size), p: &Position| {
-                let next = p.move_to(d);
+            |(d, s): &(Direction, Size), current_p: &Position| {
+                let next = current_p.move_to(d);
                 if s.is_in(&next) {
                     next
                 } else {
-                    p.clone()
+                    current_p.clone()
                 }
             },
         )
