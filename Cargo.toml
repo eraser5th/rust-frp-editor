@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+sodium-rust = { git = "https://github.com/suzuki-taro-29/sodium-rust", version = "2.1.2" }
 termion = "2.0.1"
 unicode-segmentation = "1.10.1"
-sodium-rust = "2.1.2"
