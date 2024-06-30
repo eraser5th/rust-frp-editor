@@ -136,7 +136,7 @@ checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 [[package]]
 name = "sodium-rust"
 version = "2.1.2"
-source = "git+https://github.com/suzuki-taro-29/sodium-rust#7417a2e92b80afc806ac8ab7319920a9e1ca85b9"
+source = "git+https://github.com/suzuki-taro-29/sodium-rust#9c3cafe5357f3c0c34902589d0a76e743af5e622"
 dependencies = [
  "log",
  "parking_lot",

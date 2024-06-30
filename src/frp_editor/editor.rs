@@ -29,7 +29,7 @@ pub struct Editor {
     keyboard: Keyboard,
     c_cursor_position: Cell<Position>,
     s_quit: Stream<()>,
-    c_stdout: Cell<Arc<RawTerminal<Stdout>>>,
+    stdout: Arc<RawTerminal<Stdout>>,
 }
 
 // Not FRP
@@ -42,9 +42,8 @@ impl Editor {
         printer::cursor_position(&Position::default());
 
         Operational::updates(&self.c_cursor_position).listen(printer::cursor_position);
-        self.s_quit
-            .snapshot1(&self.c_stdout)
-            .listen(|stdout: &Arc<RawTerminal<Stdout>>| Self::quit(stdout));
+        let stdout = self.stdout.clone();
+        self.s_quit.listen(move |_: &()| Self::quit(stdout.clone()));
 
         loop {
             printer::flush()?;
@@ -52,7 +51,7 @@ impl Editor {
         }
     }
 
-    fn quit(stdout: &Arc<RawTerminal<Stdout>>) {
+    fn quit(stdout: Arc<RawTerminal<Stdout>>) -> ! {
         printer::clear_screen();
         printer::cursor_position(&Position::default());
         printer::flush().unwrap();
@@ -83,7 +82,7 @@ impl Editor {
             keyboard,
             c_cursor_position,
             s_quit,
-            c_stdout: sodium_ctx.new_cell(stdout.clone()),
+            stdout: stdout.clone(),
         }
     }
 }
