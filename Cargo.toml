@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 sodium-rust = { git = "https://github.com/suzuki-taro-29/sodium-rust", version = "2.1.2" }
+sodium-rust-more-primitives = { git = "https://github.com/eraser5th/sodium-rust-more-primitives", version = "0.1.0" }
 termion = "2.0.1"
 unicode-segmentation = "1.10.1"

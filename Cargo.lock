@@ -117,6 +117,7 @@ name = "rust-frp-editor"
 version = "0.1.0"
 dependencies = [
  "sodium-rust",
+ "sodium-rust-more-primitives",
  "termion",
  "unicode-segmentation",
 ]
@@ -140,6 +141,14 @@ source = "git+https://github.com/suzuki-taro-29/sodium-rust#9c3cafe5357f3c0c3490
 dependencies = [
  "log",
  "parking_lot",
+]
+
+[[package]]
+name = "sodium-rust-more-primitives"
+version = "0.1.0"
+source = "git+https://github.com/eraser5th/sodium-rust-more-primitives#8d398cbb6c1f2d7be63cdc837d527a248d12020a"
+dependencies = [
+ "sodium-rust",
 ]
 
 [[package]]
