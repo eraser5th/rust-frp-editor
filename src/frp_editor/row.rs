@@ -22,20 +22,12 @@ impl Row {
         let cloops_insert = sodium_ctx.new_cell_loop::<Stream<(usize, char)>>();
         let cs_insert = cloops_insert.cell();
         let s_insert = cs_insert.switch_s();
-        cloops_insert.loop_(
-            &s_append
-                .map(|(_, s_i, _): &(_, Stream<(usize, char)>, _)| s_i.clone())
-                .hold(s_insert_init),
-        );
+        cloops_insert.loop_(&s_append.map(|(_, s_i, _)| s_i.clone()).hold(s_insert_init));
 
         let cloops_delete = sodium_ctx.new_cell_loop::<Stream<usize>>();
         let cs_delete = cloops_delete.cell();
         let s_delete = cs_delete.switch_s();
-        cloops_delete.loop_(
-            &s_append
-                .map(|(_, _, s_d): &(_, _, Stream<usize>)| s_d.clone())
-                .hold(s_delete_init),
-        );
+        cloops_delete.loop_(&s_append.map(|(_, _, s_d)| s_d.clone()).hold(s_delete_init));
 
         let s_inserted = insert(&s_insert, &c_content, &c_len);
         let s_deleted = delete(&s_delete, &c_content, &c_len);
@@ -47,9 +39,9 @@ impl Row {
 
         cloopc_content.loop_(
             &s_append
-                .map(|(r, _, _): &(Row, _, _)| r.clone())
-                .snapshot(&cc_content, |r: &Row, c_content: &Cell<String>| {
-                    c_content.lift2(&r.c_content, |a: &String, b: &String| a.clone() + b)
+                .map(|(r, _, _)| r.clone())
+                .snapshot(&cc_content, |r, c_content| {
+                    c_content.lift2(&r.c_content, |a, b| a.clone() + b)
                 })
                 .hold(c_content),
         );
@@ -61,25 +53,21 @@ impl Row {
 
 impl Row {
     pub fn slice(&self, c_start: Cell<usize>, c_end: Cell<usize>) -> Cell<String> {
-        let end = c_end.lift2(&self.c_len, |e: &usize, len: &usize| e.min(len).clone());
-        let start = c_start.lift2(&end, |s: &usize, e: &usize| s.min(e).clone());
+        let end = c_end.lift2(&self.c_len, |e, len| e.min(len).clone());
+        let start = c_start.lift2(&end, |s, e| s.min(e).clone());
 
-        self.c_content.lift3(
-            &start,
-            &end,
-            |content: &String, start: &usize, end: &usize| {
-                content[..]
-                    .graphemes(true)
-                    .skip(start.clone())
-                    .take(end - start)
-                    .map(|g| if g == "\t" { "  " } else { g })
-                    .collect()
-            },
-        )
+        self.c_content.lift3(&start, &end, |content, start, end| {
+            content[..]
+                .graphemes(true)
+                .skip(start.clone())
+                .take(end - start)
+                .map(|g| if g == "\t" { "  " } else { g })
+                .collect()
+        })
     }
 
     pub fn is_empty(&self) -> Cell<bool> {
-        self.c_len.map(|len: &usize| len == &0)
+        self.c_len.map(|len| len == &0)
     }
 }
 
@@ -88,26 +76,22 @@ fn insert(
     c_content: &Cell<String>,
     c_len: &Cell<usize>,
 ) -> Stream<String> {
-    s_insert.snapshot3(
-        c_content,
-        c_len,
-        |(at, c): &(usize, char), content: &String, len: &usize| {
-            let mut content = content.clone();
-            let len = len.clone();
-            let at = at.clone();
-            let c = c.clone();
+    s_insert.snapshot3(c_content, c_len, |(at, c), content, len| {
+        let mut content = content.clone();
+        let len = len.clone();
+        let at = at.clone();
+        let c = c.clone();
 
-            if at >= len {
-                content.push(c);
-                content
-            } else {
-                let mut result: String = content[..].graphemes(true).take(at).collect();
-                let remainder: String = content[..].graphemes(true).skip(at).collect();
-                result.push(c);
-                result + &remainder
-            }
-        },
-    )
+        if at >= len {
+            content.push(c);
+            content
+        } else {
+            let mut result: String = content[..].graphemes(true).take(at).collect();
+            let remainder: String = content[..].graphemes(true).skip(at).collect();
+            result.push(c);
+            result + &remainder
+        }
+    })
 }
 
 fn delete(
@@ -115,21 +99,17 @@ fn delete(
     c_content: &Cell<String>,
     c_len: &Cell<usize>,
 ) -> Stream<String> {
-    s_delete.snapshot3(
-        c_content,
-        c_len,
-        |at: &usize, content: &String, len: &usize| {
-            let content = content.clone();
-            let len = len.clone();
-            let at = at.clone();
+    s_delete.snapshot3(c_content, c_len, |at, content, len| {
+        let content = content.clone();
+        let len = len.clone();
+        let at = at.clone();
 
-            if at >= len {
-                content
-            } else {
-                let result: String = content[..].graphemes(true).take(at).collect();
-                let remainder: String = content[..].graphemes(true).skip(at + 1).collect();
-                result + &remainder
-            }
-        },
-    )
+        if at >= len {
+            content
+        } else {
+            let result: String = content[..].graphemes(true).take(at).collect();
+            let remainder: String = content[..].graphemes(true).skip(at + 1).collect();
+            result + &remainder
+        }
+    })
 }
