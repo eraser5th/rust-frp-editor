@@ -6,6 +6,7 @@ use sodium_rust::Cell;
 use sodium_rust::Operational;
 use sodium_rust::SodiumCtx;
 use sodium_rust::Stream;
+use sodium_rust_more_primitives::stream::StreamWithMorePrimitives;
 use termion::event::Key;
 use termion::raw::RawTerminal;
 
@@ -43,7 +44,7 @@ impl Editor {
 
         Operational::updates(&self.c_cursor_position).listen(printer::cursor_position);
         let stdout = self.stdout.clone();
-        self.s_quit.listen(move |_: &()| Self::quit(stdout.clone()));
+        self.s_quit.listen(move |_| Self::quit(stdout.clone()));
 
         loop {
             printer::flush()?;
@@ -73,8 +74,8 @@ impl Editor {
         let keyboard = Keyboard::new(&sodium_ctx);
         let terminal = Terminal::new(&sodium_ctx).expect("Failed to initialize terminal");
         let s_quit = command(&keyboard.s_key_pressed)
-            .filter(|c: &Command| *c == Command::Quit)
-            .map(|_: &Command| ());
+            .filter(|c| *c == Command::Quit)
+            .map(|_| ());
 
         let c_cursor_position = cursor_position(&keyboard.s_arrow_key_pressed, &terminal.c_size);
 
@@ -88,7 +89,7 @@ impl Editor {
 }
 
 fn command(s_key_pressed: &Stream<Key>) -> Stream<Command> {
-    s_key_pressed.map(|k: &Key| match k {
+    s_key_pressed.map(|k| match k {
         Key::Ctrl('q') => Command::Quit,
         Key::Ctrl('s') => Command::Save,
         Key::Ctrl('z') => Command::Undo,
@@ -101,19 +102,10 @@ fn cursor_position(
     s_arrow_key_pressed: &Stream<Direction>,
     c_terminal_size: &Cell<Size>,
 ) -> Cell<Position> {
-    s_arrow_key_pressed
-        .snapshot(c_terminal_size, |d: &Direction, s: &Size| {
-            (d.clone(), s.clone())
-        })
-        .accum(
-            Position::default(),
-            |(d, s): &(Direction, Size), current_p: &Position| {
-                let next = current_p.move_to(d);
-                if s.is_in(&next) {
-                    next
-                } else {
-                    current_p.clone()
-                }
-            },
-        )
+    let c_terminal_size = c_terminal_size.clone();
+    s_arrow_key_pressed.accum_filter(
+        Position::default(),
+        move |next_p| c_terminal_size.sample().is_in(next_p),
+        |d, current_p| current_p.move_to(d),
+    )
 }
