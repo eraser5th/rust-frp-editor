@@ -1,3 +1,4 @@
+use crossterm::terminal::size;
 use sodium_rust::{Cell, SodiumCtx};
 
 use super::Position;
@@ -20,7 +21,7 @@ pub struct Terminal {
 
 impl Terminal {
     pub fn new(sodium_ctx: &SodiumCtx) -> Result<Self, std::io::Error> {
-        let size = termion::terminal_size()?;
+        let size = size()?;
         Ok(Self {
             c_size: sodium_ctx.new_cell(Size {
                 width: size.0,

@@ -1,15 +1,15 @@
-use std::io::Stdout;
 use std::process;
 use std::sync::Arc;
 
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyModifiers;
 use crossterm::terminal::disable_raw_mode;
 use sodium_rust::Cell;
 use sodium_rust::Operational;
 use sodium_rust::SodiumCtx;
 use sodium_rust::Stream;
 use sodium_rust_more_primitives::stream::StreamWithMorePrimitives;
-use termion::event::Key;
-use termion::raw::RawTerminal;
 
 use super::printer;
 use super::terminal::Size;
@@ -52,7 +52,7 @@ impl Editor {
 
         loop {
             printer::flush()?;
-            self.keyboard.observe_keypress()?;
+            self.keyboard.observe_keypress();
         }
     }
 
@@ -97,13 +97,19 @@ impl Editor {
     }
 }
 
-fn command(s_key_pressed: &Stream<Key>) -> Stream<Command> {
-    s_key_pressed.map(|k| match k {
-        Key::Ctrl('q') => Command::Quit,
-        Key::Ctrl('s') => Command::Save,
-        Key::Ctrl('z') => Command::Undo,
-        Key::Ctrl('Z') => Command::Redo,
-        _ => Command::NOP,
+fn command(s_key_pressed: &Stream<KeyEvent>) -> Stream<Command> {
+    s_key_pressed.map(|k| {
+        match k.modifiers {
+            KeyModifiers::CONTROL => (),
+            _ => return Command::NOP,
+        };
+        match k.code {
+            KeyCode::Char('q') => Command::Quit,
+            KeyCode::Char('s') => Command::Save,
+            KeyCode::Char('z') => Command::Undo,
+            KeyCode::Char('Z') => Command::Redo,
+            _ => Command::NOP,
+        }
     })
 }
 
