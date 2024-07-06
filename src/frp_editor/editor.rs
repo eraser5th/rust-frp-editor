@@ -13,6 +13,7 @@ use termion::raw::RawTerminal;
 use super::printer;
 use super::terminal::Size;
 use super::Direction;
+use super::Document;
 use super::Keyboard;
 use super::Position;
 use super::Terminal;
@@ -31,6 +32,7 @@ pub struct Editor {
     c_cursor_position: Cell<Position>,
     s_quit: Stream<()>,
     stdout: Arc<RawTerminal<Stdout>>,
+    document: Document,
 }
 
 // Not FRP
@@ -41,10 +43,13 @@ impl Editor {
     pub fn run(&self) -> Result<(), std::io::Error> {
         printer::clear_screen();
         printer::cursor_position(&Position::default());
-
         Operational::updates(&self.c_cursor_position).listen(printer::cursor_position);
+
         let stdout = self.stdout.clone();
         self.s_quit.listen(move |_| Self::quit(stdout.clone()));
+        self.document.c_content.listen(|content: &String| {
+            content.split("\n").for_each(|line| println!("{}\r", line));
+        });
 
         loop {
             printer::flush()?;
@@ -70,7 +75,7 @@ impl Editor {
     /**
      * Build the whole of FRP Network of application
      */
-    pub fn new(sodium_ctx: &SodiumCtx, stdout: &Arc<RawTerminal<Stdout>>) -> Self {
+    pub fn new(sodium_ctx: Arc<SodiumCtx>, stdout: &Arc<RawTerminal<Stdout>>) -> Self {
         let keyboard = Keyboard::new(&sodium_ctx);
         let terminal = Terminal::new(&sodium_ctx).expect("Failed to initialize terminal");
         let s_quit = command(&keyboard.s_key_pressed)
@@ -78,12 +83,18 @@ impl Editor {
             .map(|_| ());
 
         let c_cursor_position = cursor_position(&keyboard.s_arrow_key_pressed, &terminal.c_size);
+        let ssink_filename = sodium_ctx.new_stream_sink::<String>();
+        let s_filename = ssink_filename.stream();
+
+        let document = Document::new(sodium_ctx.clone(), &s_filename);
+        ssink_filename.send("editor-test.txt".to_string());
 
         Self {
             keyboard,
             c_cursor_position,
             s_quit,
             stdout: stdout.clone(),
+            document,
         }
     }
 }

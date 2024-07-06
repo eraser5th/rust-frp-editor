@@ -25,7 +25,7 @@ fn main() {
         default_panic(info);
     }));
 
-    let sodium_ctx = SodiumCtx::new();
+    let sodium_ctx = Arc::new(SodiumCtx::new());
 
-    Editor::new(&sodium_ctx, &stdout).run().unwrap();
+    Editor::new(sodium_ctx, &stdout).run().unwrap();
 }
