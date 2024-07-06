@@ -1,11 +1,12 @@
-pub mod direction;
-pub mod document;
 pub mod editor;
-pub mod keyboard;
-pub mod position;
-pub mod printer;
-pub mod row;
-pub mod terminal;
+
+mod direction;
+mod document;
+mod keyboard;
+mod position;
+mod printer;
+mod row;
+mod terminal;
 
 pub use direction::Direction;
 pub use document::Document;

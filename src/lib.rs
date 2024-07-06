@@ -1,2 +1,2 @@
-pub mod frp_editor;
+pub mod editor;
 pub mod utils;

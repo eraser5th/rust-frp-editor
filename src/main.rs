@@ -11,8 +11,9 @@
 use std::sync::Arc;
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use rust_frp_editor::frp_editor::Editor;
 use sodium_rust::SodiumCtx;
+
+use rust_frp_editor::editor::Editor;
 
 fn main() {
     enable_raw_mode().unwrap();
