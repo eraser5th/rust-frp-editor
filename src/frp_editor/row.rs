@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use sodium_rust::{Cell, SodiumCtx, Stream};
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -9,43 +11,45 @@ pub struct Row {
 
 impl Row {
     pub fn new_from_str(
-        sodium_ctx: &SodiumCtx,
+        sodium_ctx: Arc<SodiumCtx>,
         s: &str,
-        s_insert_init: Stream<(usize, char)>,
-        s_delete_init: Stream<usize>,
-        s_append: Stream<(Row, Stream<(usize, char)>, Stream<usize>)>,
+        s_insert: Stream<(usize, char)>,
+        s_delete: Stream<usize>,
     ) -> Self {
-        let cloop_content = sodium_ctx.new_cell_loop();
-        let c_content = cloop_content.cell();
+        let cloopc_content = sodium_ctx.new_cell_loop();
+        let c_content = cloopc_content.cell();
         let c_len = c_content.map(|content: &String| content[..].graphemes(true).count());
-
-        let cloops_insert = sodium_ctx.new_cell_loop::<Stream<(usize, char)>>();
-        let cs_insert = cloops_insert.cell();
-        let s_insert = cs_insert.switch_s();
-        cloops_insert.loop_(&s_append.map(|(_, s_i, _)| s_i.clone()).hold(s_insert_init));
-
-        let cloops_delete = sodium_ctx.new_cell_loop::<Stream<usize>>();
-        let cs_delete = cloops_delete.cell();
-        let s_delete = cs_delete.switch_s();
-        cloops_delete.loop_(&s_append.map(|(_, _, s_d)| s_d.clone()).hold(s_delete_init));
 
         let s_inserted = insert(&s_insert, &c_content, &c_len);
         let s_deleted = delete(&s_delete, &c_content, &c_len);
 
-        cloop_content.loop_(&s_inserted.or_else(&s_deleted).hold(s.to_string()));
+        let c_content = s_inserted.or_else(&s_deleted).hold(s.to_string());
 
-        let cloopc_content = sodium_ctx.new_cell_loop::<Cell<String>>();
-        let cc_content = cloopc_content.cell();
+        Self { c_content, c_len }
+    }
+}
 
-        cloopc_content.loop_(
-            &s_append
-                .map(|(r, _, _)| r.clone())
-                .snapshot(&cc_content, |r, c_content| {
-                    c_content.lift2(&r.c_content, |a, b| a.clone() + b)
-                })
-                .hold(c_content),
-        );
-        let c_content = Cell::switch_c(&cc_content);
+impl Row {
+    pub fn append(
+        sodium_ctx: Arc<SodiumCtx>,
+        a: &Self,
+        b: &Self,
+        s_insert: Stream<(usize, char)>,
+        s_delete: Stream<usize>,
+    ) -> Self {
+        let content = a
+            .c_content
+            .lift2(&b.c_content, |a, b| a.clone() + b)
+            .sample();
+
+        let cloopc_content = sodium_ctx.new_cell_loop();
+        let c_content = cloopc_content.cell();
+        let c_len = c_content.map(|content: &String| content[..].graphemes(true).count());
+
+        let s_inserted = insert(&s_insert, &c_content, &c_len);
+        let s_deleted = delete(&s_delete, &c_content, &c_len);
+
+        let c_content = s_inserted.or_else(&s_deleted).hold(content);
 
         Self { c_content, c_len }
     }

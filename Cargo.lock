@@ -146,7 +146,7 @@ dependencies = [
 [[package]]
 name = "sodium-rust-more-primitives"
 version = "0.1.0"
-source = "git+https://github.com/eraser5th/sodium-rust-more-primitives#8d398cbb6c1f2d7be63cdc837d527a248d12020a"
+source = "git+https://github.com/eraser5th/sodium-rust-more-primitives#65c0c8ccc951e28ab1737cb40d81e06171b6f06d"
 dependencies = [
  "sodium-rust",
 ]
