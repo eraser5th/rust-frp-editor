@@ -2,6 +2,7 @@ use std::io::Stdout;
 use std::process;
 use std::sync::Arc;
 
+use crossterm::terminal::disable_raw_mode;
 use sodium_rust::Cell;
 use sodium_rust::Operational;
 use sodium_rust::SodiumCtx;
@@ -31,7 +32,6 @@ pub struct Editor {
     keyboard: Keyboard,
     c_cursor_position: Cell<Position>,
     s_quit: Stream<()>,
-    stdout: Arc<RawTerminal<Stdout>>,
     document: Document,
 }
 
@@ -45,8 +45,7 @@ impl Editor {
         printer::cursor_position(&Position::default());
         Operational::updates(&self.c_cursor_position).listen(printer::cursor_position);
 
-        let stdout = self.stdout.clone();
-        self.s_quit.listen(move |_| Self::quit(stdout.clone()));
+        self.s_quit.listen(move |_| Self::quit());
         self.document.c_content.listen(|content: &String| {
             content.split("\n").for_each(|line| println!("{}\r", line));
         });
@@ -57,12 +56,12 @@ impl Editor {
         }
     }
 
-    fn quit(stdout: Arc<RawTerminal<Stdout>>) -> ! {
+    fn quit() -> ! {
         printer::clear_screen();
         printer::cursor_position(&Position::default());
         printer::flush().unwrap();
 
-        stdout.suspend_raw_mode().unwrap();
+        disable_raw_mode().unwrap();
 
         println!("Bye!!!\r\n");
 
@@ -75,7 +74,7 @@ impl Editor {
     /**
      * Build the whole of FRP Network of application
      */
-    pub fn new(sodium_ctx: Arc<SodiumCtx>, stdout: &Arc<RawTerminal<Stdout>>) -> Self {
+    pub fn new(sodium_ctx: Arc<SodiumCtx>) -> Self {
         let keyboard = Keyboard::new(&sodium_ctx);
         let terminal = Terminal::new(&sodium_ctx).expect("Failed to initialize terminal");
         let s_quit = command(&keyboard.s_key_pressed)
@@ -93,7 +92,6 @@ impl Editor {
             keyboard,
             c_cursor_position,
             s_quit,
-            stdout: stdout.clone(),
             document,
         }
     }
