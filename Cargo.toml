@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+crossterm = "0.27.0"
 sodium-rust = { git = "https://github.com/suzuki-taro-29/sodium-rust", version = "2.1.2" }
 sodium-rust-more-primitives = { git = "https://github.com/eraser5th/sodium-rust-more-primitives", version = "0.1.0" }
 termion = "2.0.1"
